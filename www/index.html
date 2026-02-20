@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIP PRIVATE VAULT 🔥</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', monospace; }
+        .vault-card { background: #1a1a1a; border: 1px solid #333; transition: 0.3s; }
+        .vault-card:hover { border-color: #00ff41; box-shadow: 0 0 15px #00ff41; }
+        input[type="file"] { display: none; }
+        .btn-glow { background: #00ff41; color: black; font-weight: bold; border-radius: 4px; box-shadow: 0 0 10px #00ff41; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #00ff41; }
+    </style>
+</head>
+<body class="p-5">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold uppercase tracking-widest mb-2">CodingX Vault VIP ☠️</h1>
+            <p class="text-gray-500 italic">"Simpan Rahasiamu, Hancurkan Jejakmu, Bos-Tuan Besar!"</p>
+        </header>
+
+        <div class="vault-card p-6 rounded-lg mb-8 flex justify-between items-center">
+            <div>
+                <label for="fileInput" class="btn-glow px-6 py-3 cursor-pointer hover:bg-green-400">
+                    📥 MASUKKAN KE BRANKAS
+                </label>
+                <input type="file" id="fileInput" accept="image/*,video/*" multiple>
+            </div>
+            <div id="status" class="text-sm">System: <span class="text-blue-400">READY</span></div>
+        </div>
+
+        <div id="vaultGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+    </div>
+
+    <script>
+        const dbName = "VipPrivateVault";
+        const storeName = "SecretMedia";
+        let db;
+
+        // Initialize Database
+        const request = indexedDB.open(dbName, 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            db.createObjectStore(storeName, { keyPath: "id", autoIncrement: true });
+        };
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            loadVault();
+        };
+
+        // Handle File Upload
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const files = e.target.files;
+            const status = document.getElementById('status');
+            
+            for (let file of files) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const blob = new Blob([event.target.result], { type: file.type });
+                    saveToVault({
+                        name: file.name,
+                        type: file.type,
+                        data: blob,
+                        timestamp: new Date().getTime()
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            status.innerHTML = "System: <span class='text-yellow-400'>UPLOADING...</span>";
+        });
+
+        function saveToVault(item) {
+            const transaction = db.transaction([storeName], "readwrite");
+            const store = transaction.objectStore(storeName);
+            store.add(item);
+            transaction.oncomplete = () => {
+                loadVault();
+                document.getElementById('status').innerHTML = "System: <span class='text-green-400'>SYNCED</span>";
+            };
+        }
+
+        function loadVault() {
+            const grid = document.getElementById('vaultGrid');
+            grid.innerHTML = '';
+            const store = db.transaction(storeName).objectStore(storeName);
+            
+            store.openCursor().onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    const value = cursor.value;
+                    const url = URL.createObjectURL(value.data);
+                    
+                    const div = document.createElement('div');
+                    div.className = "vault-card rounded-lg overflow-hidden";
+                    
+                    let mediaElement = value.type.startsWith('image/') 
+                        ? `<img src="${url}" class="w-full h-48 object-cover">` 
+                        : `<video src="${url}" controls class="w-full h-48 object-cover"></video>`;
+
+                    div.innerHTML = `
+                        ${mediaElement}
+                        <div class="p-3 text-xs flex justify-between items-center bg-black">
+                            <span class="truncate w-32">${value.name}</span>
+                            <button onclick="deleteItem(${value.id})" class="text-red-600 hover:text-red-400">HAPUS</button>
+                        </div>
+                    `;
+                    grid.appendChild(div);
+                    cursor.continue();
+                }
+            };
+        }
+
+        function deleteItem(id) {
+            const transaction = db.transaction([storeName], "readwrite");
+            transaction.objectStore(storeName).delete(id);
+            transaction.oncomplete = () => loadVault();
+        }
+    </script>
+</body>
+</html>
